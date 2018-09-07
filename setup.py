@@ -116,7 +116,7 @@ setup(
             extra_link_args=extra_link_args,
         )],
     install_requires=[
-        'matplotlib>=1.3.1',
+        'matplotlib==2.2.3',
         'numpy>=1.8.0',
         'pandas>=0.17.0',
         'requests>=2.0',
