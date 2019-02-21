@@ -1,11 +1,13 @@
 from __future__ import division, print_function
 
 import matplotlib
+
 # this might fix the travis build
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 from sklearn.neighbors import KDTree
 
 from .cyaccess import cyaccess
@@ -56,7 +58,7 @@ class Network:
                  twoway=True):
 
         nodes_df = pd.DataFrame({'x': node_x, 'y': node_y})
-        edges_df = pd.DataFrame({'from': edge_from, 'to': edge_to}).\
+        edges_df = pd.DataFrame({'from': edge_from, 'to': edge_to}). \
             join(edge_weights)
 
         self.nodes_df = nodes_df
@@ -76,14 +78,14 @@ class Network:
                                   index=nodes_df.index)
 
         edges = pd.concat([self._node_indexes(edges_df["from"]),
-                          self._node_indexes(edges_df["to"])], axis=1)
+                           self._node_indexes(edges_df["to"])], axis=1)
 
         self.net = cyaccess(self.node_idx.values,
                             nodes_df.astype('double').as_matrix(),
                             edges.as_matrix(),
                             edges_df[edge_weights.columns].transpose()
-                                                          .astype('double')
-                                                          .as_matrix(),
+                            .astype('double')
+                            .as_matrix(),
                             twoway)
 
         self._twoway = twoway
@@ -230,10 +232,10 @@ class Network:
         length = len(df)
         df = df.dropna(how="any")
         newl = len(df)
-        if length-newl > 0:
+        if length - newl > 0:
             print(
                 "Removed %d rows because they contain missing values" %
-                (length-newl))
+                (length - newl))
 
         self.variable_names.add(name)
 
@@ -262,7 +264,7 @@ class Network:
 
     def _imp_name_to_num(self, imp_name):
         if imp_name is None:
-            assert len(self.impedance_names) == 1,\
+            assert len(self.impedance_names) == 1, \
                 "must pass impedance name if there are multiple impedances set"
             imp_name = self.impedance_names[0]
 
@@ -366,6 +368,8 @@ class Network:
             If the mapping is imperfect, this function returns all the
             input x, y's that were successfully mapped to node_ids.
         """
+
+
         xys = pd.DataFrame({'x': x_col, 'y': y_col})
 
         distances, indexes = self.kdtree.query(xys.as_matrix())
@@ -383,7 +387,7 @@ class Network:
         return df.node_id
 
     def plot(
-            self, data, bbox=None, plot_type='scatter',
+            self, data, bbox=None, label_poi=None, access_num_secs=60,
             fig_kwargs=None, bmap_kwargs=None, plot_kwargs=None,
             cbar_kwargs=None):
         """
@@ -421,7 +425,8 @@ class Network:
         ax : matplotlib.Axes
 
         """
-        from mpl_toolkits.basemap import Basemap
+        import geopandas as gpd
+        from shapely.geometry import Point, Polygon
 
         fig_kwargs = fig_kwargs or {}
         bmap_kwargs = bmap_kwargs or {}
@@ -437,23 +442,15 @@ class Network:
 
         fig, ax = plt.subplots(**fig_kwargs)
 
-        bmap = Basemap(
-            bbox[1], bbox[0], bbox[3], bbox[2], ax=ax, **bmap_kwargs)
-        bmap.drawcoastlines()
-        bmap.drawmapboundary()
+        gdf = gpd.GeoDataFrame(self.nodes_df, geometry=[Point(row.x, row.y) for _, row in
+                                                  self.nodes_df.iterrows()])
+        access_minutes = int(access_num_secs / 60)
+        ax.axis('equal')
+        data_name = "{}_{}".format(access_minutes, label_poi)
+        gdf[data_name] = data
+        gdf[gdf[data_name] > 0].plot(markersize=5, column=data_name, ax=ax, legend=True)
 
-        x, y = bmap(self.nodes_df.x.values, self.nodes_df.y.values)
-
-        if plot_type == 'scatter':
-            plot = bmap.scatter(
-                x, y, c=data.values, **plot_kwargs)
-        elif plot_type == 'hexbin':
-            plot = bmap.hexbin(
-                x, y, C=data.values, **plot_kwargs)
-
-        bmap.colorbar(plot, **cbar_kwargs)
-
-        return bmap, fig, ax
+        return gdf, fig, ax
 
     def set_pois(self, category, maxdist, maxitems, x_col, y_col):
         """
@@ -559,11 +556,11 @@ class Network:
         dists[dists == -1] = max_distance
 
         df = pd.DataFrame(dists, index=self.node_ids)
-        df.columns = list(range(1, num_pois+1))
+        df.columns = list(range(1, num_pois + 1))
 
         if include_poi_ids:
             df2 = pd.DataFrame(poi_ids, index=self.node_ids)
-            df2.columns = ["poi%d" % i for i in range(1, num_pois+1)]
+            df2.columns = ["poi%d" % i for i in range(1, num_pois + 1)]
             for col in df2.columns:
                 # if this is still all working according to plan at this point
                 # the great magic trick is now to turn the integer position of
